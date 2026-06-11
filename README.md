@@ -1,39 +1,43 @@
 # 🎬 Reel
 
+[![skills.sh](https://skills.sh/b/SSSonnettt/reel)](https://skills.sh/SSSonnettt/reel)
+
 将 Markdown 文档或 URL 转换为带配音和字幕的 Remotion 教程视频。
 
-## 项目简介
+## 快速安装
 
-Reel 是一个自动化视频生成工具，通过多阶段流水线将技术文档转换为专业的教程视频。核心特点：
+### 作为 AI Skill 安装（推荐）
 
-- **AI 驱动的内容解析**：自动解析 Markdown 结构，匹配最佳视觉场景
-- **TTS 配音**：使用 Edge TTS 生成中文神经网络语音
-- **SRT 字幕**：自动生成时间轴精确的字幕文件
-- **Remotion 渲染**：基于 React 的视频渲染引擎，输出 1920×1080 @ 30fps 高清视频
-- **模板化设计**：10 个预编译场景模板，AI 只选择模板和填充参数，不生成 React 代码
+```bash
+npx skills add SSSonnettt/reel
+```
 
-## 安装步骤
+安装后，在支持 skill 的 AI 环境中使用 `/reel` 命令即可自动触发视频生成流程。
 
-### 前置要求
+### 手动安装
+
+Reel 是一个自动化视频生成工具，通过多阶段流水线将技术文档转换为专业的教程视频。
+
+#### 前置要求
 
 - Node.js >= 18
 - Python 3.8+
 - npm 或 pnpm
 
-### 1. 克隆项目
+#### 1. 克隆项目
 
 ```bash
 git clone git@github.com:SSSonnettt/reel.git
 cd reel
 ```
 
-### 2. 安装 Python 依赖
+#### 2. 安装 Python 依赖
 
 ```bash
 pip install edge-tts
 ```
 
-### 3. 验证安装
+#### 3. 验证安装
 
 ```bash
 # 测试 TTS

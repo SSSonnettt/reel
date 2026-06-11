@@ -1,6 +1,7 @@
 node_modules/
 dist/
 output/
+workdir/
 docs/
 *.mp4
 *.mp3
@@ -8,3 +9,15 @@ docs/
 .DS_Store
 .env
 .env.local
+
+# Agent directories
+.agents/
+.claude/
+.qoder/
+.cursor/
+.codebuddy/
+.codex/
+.kiro/
+.trae/
+.windsurf/
+.opencode/
