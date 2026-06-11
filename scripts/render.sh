@@ -28,7 +28,7 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # 渲染
-npx remotion render DocToVideo "$OUTPUT"
+npx remotion render Reel "$OUTPUT"
 
 echo ""
 echo "✅ 渲染完成: $OUTPUT"

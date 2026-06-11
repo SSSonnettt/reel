@@ -1,260 +1,159 @@
 ---
 name: reel
 description: >-
-  Use when the user wants to convert Markdown documents or URLs to tutorial videos
-  with TTS voiceover and SRT subtitles via Remotion. Triggers on: doc-to-video,
-  文档转视频, Markdown转视频, 生成教程视频, create tutorial video from docs.
-license: MIT
-compatibility: >-
-  Requires Node.js >= 18, Python 3.8+ with edge-tts library. Remotion for video rendering.
-  Works with any Markdown file or public URL.
-metadata:
-  author: wuji
-  version: "1.0.0"
-  category: content-creation
-  output-format: mp4
-  tts-engine: edge-tts
+  Use when the user asks to generate a video from documentation
+  (Markdown file, URL, or text content), create tutorial videos,
+  convert docs to MP4, or mentions 文档转视频 / 生成教程视频 /
+  Markdown to video. Also use when the user says "reel" or "/reel".
+  Do NOT use for editing existing videos, generating AI images for
+  video, or live-action video production.
 ---
 
 # /reel
 
-输入一篇 Markdown 文档或 URL，AI 执行多阶段流水线，生成带 TTS 配音和 SRT 字幕的 Remotion 视频。
+文档 → Remotion 视频，六阶段自动流水线。AI 只选择模板和填充参数，不生成 React 代码。
 
-## 触发方式
+## 决策流程
 
-```
-/reel <markdown-file | url>
-```
+```dot
+digraph reel_flow {
+    rankdir=TB;
 
-## 核心理念
+    "输入: MD / URL?" [shape=doublecircle];
+    "URL → WebFetch 获取" [shape=box];
+    "解析为 ContentManifest" [shape=box];
+    "匹配场景模板" [shape=box];
+    "写配音文案" [shape=box];
+    "用户确认分镜?" [shape=diamond];
+    "修改分镜" [shape=box];
+    "生成 ProductionPlan" [shape=box];
+    "调用 TTS 脚本" [shape=box];
+    "组装 Remotion 项目" [shape=box];
+    "渲染输出 MP4" [shape=box];
+    "完成" [shape=doublecircle];
 
-**LLM 从预建组件模板库中选择并填充参数，不生成 React 代码。**
-
-渲染层由 10 个预编译的 Remotion 场景模板组成。AI 的职责是：
-1. 解析文档结构
-2. 匹配场景模板
-3. 生成配音文案
-4. 编排渲染参数
-5. 触发渲染
-
-## 流水线（三层六阶段）
-
-### 编排层 (Orchestration)
-
-**Stage 1 — Researcher**: 解析输入为结构化内容
-
-给定 MD 文件路径或 URL，输出 `ContentManifest` JSON：
-
-```json
-{
-  "title": "文档标题",
-  "sections": [
-    {
-      "id": "section-1",
-      "type": "heading" | "paragraph" | "list" | "code" | "table" | "blockquote",
-      "title": "章节标题",
-      "content": "原始内容",
-      "children": []
-    }
-  ]
+    "输入: MD / URL?" -> "URL → WebFetch 获取" [label="URL"];
+    "输入: MD / URL?" -> "解析为 ContentManifest" [label="MD 文件"];
+    "URL → WebFetch 获取" -> "解析为 ContentManifest";
+    "解析为 ContentManifest" -> "匹配场景模板";
+    "匹配场景模板" -> "写配音文案";
+    "写配音文案" -> "用户确认分镜?";
+    "用户确认分镜?" -> "修改分镜" [label="不满意"];
+    "修改分镜" -> "用户确认分镜?";
+    "用户确认分镜?" -> "生成 ProductionPlan" [label="确认"];
+    "生成 ProductionPlan" -> "调用 TTS 脚本";
+    "调用 TTS 脚本" -> "组装 Remotion 项目";
+    "组装 Remotion 项目" -> "渲染输出 MP4";
+    "渲染输出 MP4" -> "完成";
 }
 ```
 
-工作流程：
-1. 如果是 URL → 用 WebFetch 获取内容，转为 Markdown
-2. 解析 Markdown AST（标题、段落、列表、代码块、表格、引用）
-3. 按标题层级分组为 sections
-4. 输出 ContentManifest JSON 到 `workdir/content-manifest.json`
+## 快速参考
 
-**Stage 2 — Screenwriter**: 内容 → 分镜脚本
+### 六阶段
 
-输入 ContentManifest，输出 `Storyboard` JSON：
+| Stage | 做什么 | 输出 |
+|-------|--------|------|
+| S1 Researcher | MD/URL → 结构化 JSON | `workdir/content-manifest.json` |
+| S2 Screenwriter | 匹配模板 + 写配音 | `workdir/storyboard.json` |
+| ⚠️ **确认点** | **暂停，等用户确认分镜** | — |
+| S3 Director | 分镜 → 生产计划 | `workdir/production-plan.json` |
+| S4 Asset Gen | 批量 TTS 配音+字幕 | `workdir/assets/audio/` + `srt/` |
+| S5 Compositor | 组装 Remotion 项目 | `workdir/remotion-project/` |
+| S6 Renderer | 渲染输出 | `workdir/out/video.mp4` |
 
-```json
-{
-  "title": "视频标题",
-  "scenes": [
-    {
-      "id": "scene-001",
-      "sectionId": "section-1",
-      "template": "TitleScene",
-      "props": {
-        "title": "标题文字",
-        "subtitle": "副标题",
-        "durationInFrames": 150
-      },
-      "narration": "大家好，今天我们来聊聊...",
-      "narrationDurationEst": 8.5,
-      "durationInFrames": 270
-    }
-  ],
-  "totalDurationInFrames": 5400,
-  "estimatedDurationSec": 180
-}
+### 模板匹配（严格按此优先级）
+
+```
+代码块?      → CodeScene
+表格?        → ConfigTableScene
+有序列表?    → StepScene
+无序列表?    → BulletScene
+引用块?      → QuoteScene
+有%或数字?   → StatsScene
+含"优势/好处"关键词? → BenefitsScene
+含"对比/区别"关键词? → CompareScene
+H1 标题      → TitleScene (强制开场)
+含"总结"     → OutroScene  (强制结尾)
+普通段落     → BulletScene  (兜底)
 ```
 
-工作流程：
-1. 为每个 section 匹配最合适的场景模板（见下方匹配规则）
-2. 撰写口语化配音文案（中文，口播风格，句子短小）
-3. 估算配音时长（中文约 3 字/秒，+ 20% 余量）
-4. 添加 TitleScene 作为开场和 OutroScene 作为结尾
-5. 输出 Storyboard JSON 到 `workdir/storyboard.json`
+完整 Props 接口见 `references/scene-templates.md`。
 
-**⚠️ 分镜确认点**：输出分镜后，暂停，请用户确认或修改。用户确认后才进入 Stage 3。
+### 关键命令
 
-**Stage 3 — Director**: 分镜 → 生产计划
-
-输入 Storyboard，输出 `ProductionPlan` JSON：
-
-```json
-{
-  "title": "视频标题",
-  "fps": 30,
-  "width": 1920,
-  "height": 1080,
-  "scenes": [
-    {
-      "id": "scene-001",
-      "templateFile": "TitleScene.tsx",
-      "propsJson": { "title": "标题文字", "subtitle": "副标题" },
-      "audioFile": "assets/audio/scene-001.mp3",
-      "srtFile": "assets/srt/scene-001.srt",
-      "durationInFrames": 270
-    }
-  ],
-  "totalFrames": 5400
-}
-```
-
-工作流程：
-1. 将 Storyboard 翻译为可执行的生产参数
-2. 计算精确帧数（按 30fps + 配音时长）
-3. 指定每个场景的模板文件和资源文件路径
-4. 输出 ProductionPlan JSON 到 `workdir/production-plan.json`
-
-### 执行层 (Execution)
-
-**Stage 4 — Asset Generator**: 批量生成配音和字幕
-
-工作流程：
-1. 读取 ProductionPlan，收集所有 narration 文本
-2. 调用 TTS 脚本批量生成 mp3 + srt
-3. 输出到 `workdir/assets/audio/` 和 `workdir/assets/srt/`
-4. 更新 ProductionPlan 中的音频/srt 路径
-
-TTS 脚本调用：
 ```bash
+# TTS 单条
 python3 scripts/generate-voiceover.py \
-  --text "配音文本" \
-  --output-audio workdir/assets/audio/scene-001.mp3 \
-  --output-srt workdir/assets/srt/scene-001.srt
+  --text "配音文本" --output-audio scene.mp3 --output-srt scene.srt
+
+# TTS 批量
+python3 scripts/generate-voiceover-batch.py \
+  --plan workdir/production-plan.json --workdir workdir
+
+# 渲染
+cd workdir/remotion-project && npm install
+npx remotion render Reel out/video.mp4
 ```
 
-**Stage 5 — Compositor**: 组装 Remotion 项目
+## 各阶段操作指南
 
-工作流程：
-1. 复制 Remotion 项目模板到 `workdir/remotion-project/`
-2. 基于 ProductionPlan 生成 `config.ts`（场景数据）
-3. 生成 `Composition.tsx`（场景编排）
-4. 确保 `Root.tsx` 注册 Composition
-5. 拷贝用到的模板组件到项目目录
-6. 安装依赖：`cd workdir/remotion-project && npm install`
+### S1 — 解析
 
-**Stage 6 — Renderer**: 渲染输出
+1. URL → `WebFetch` 获取 → 转 Markdown
+2. 解析为 sections (heading/paragraph/list/code/table/blockquote)
+3. 按标题层级分组
+4. 输出 ContentManifest JSON
 
-```bash
-cd workdir/remotion-project && \
-  npx remotion render Composition out/video.mp4
-```
+### S2 — 写分镜
 
-输出 → `workdir/out/video.mp4`
+1. 按优先级为每个 section 匹配模板
+2. 写口语化中文配音（~3 字/秒，口播风格，单条 <200 字）
+3. 估算帧数：`字数 / 3 × 1.2 × 30`
+4. **强制**: 第一个场景 TitleScene，最后一个 OutroScene
+5. **⚠️ 必须暂停等用户确认。禁止跳过。**
 
-## 场景模板匹配规则
+### S3 — 生产计划
 
-按优先级从高到低匹配：
+1. Storyboard → ProductionPlan (帧精确, 30fps)
+2. 指定 templateFile、audioFile、srtFile 路径
 
-| 优先级 | 模板 | 匹配条件 |
-|--------|------|---------|
-| 1 | CodeScene | 代码块（```) 存在 |
-| 2 | ConfigTableScene | Markdown 表格存在 |
-| 3 | StepScene | 有序列表存在 |
-| 4 | BulletScene | 无序列表存在 |
-| 5 | QuoteScene | blockquote 存在 |
-| 6 | StatsScene | 内容含百分比或统计数字 |
-| 7 | BenefitsScene | 内容含"为什么/优势/好处/收益" |
-| 8 | CompareScene | 内容含"旧/新/对比/区别/之前/之后" |
-| 9 | TitleScene | H1 标题（作为开场） |
-| 10 | OutroScene | 内容含"总结/小结/回顾" |
-| — | BulletScene | 默认（段落兜底） |
+### S4–S6 — 执行
 
-## 模板库（10 个场景组件）
+按命令模板依次调用 TTS → 组装 → 渲染。组装使用 `scripts/compositor.ts`。
 
-全部位于 `templates/remotion-project/src/components/scenes/`：
+## 常见错误
 
-| 文件 | 用途 |
-|------|------|
-| `TitleScene.tsx` | 开场标题，居中大字 + 副标题 |
-| `BenefitsScene.tsx` | 优势列表，图标 + 文字飞入 |
-| `StepScene.tsx` | 操作步骤，编号 + 逐条出现 |
-| `ConfigTableScene.tsx` | 配置项表格展示 |
-| `StatsScene.tsx` | 数据/统计数字，大数字 + 标签 |
-| `CompareScene.tsx` | 前后对比，双栏布局 |
-| `CodeScene.tsx` | 代码展示，语法高亮 + 逐行 |
-| `BulletScene.tsx` | 要点列表，bullet 动画 |
-| `QuoteScene.tsx` | 引用，引号 + 斜体 |
-| `OutroScene.tsx` | 结尾总结 + CTA |
+| 错误 | 正确做法 |
+|------|---------|
+| 跳过用户确认分镜 | S2 后必须暂停等回复 |
+| 试图生成新的 React 组件 | 只从 10 个模板选，不写新代码 |
+| narration 单个太长 | 拆分为多个场景，每个 <200 字 |
+| 忘记开场/结尾 | TitleScene + OutroScene 强制存在 |
+| 跳 stage | 严格 S1→S2→确认→S3→S4→S5→S6 |
+| 改动模板代码 | 调整 props 或换模板，不改 .tsx |
+| 帧数估算随意 | 按公式计算，留 20% 余量 |
 
-每个模板接受统一的 Props 接口：
+## 红旗信号
 
-```ts
-interface SceneProps {
-  title?: string;
-  subtitle?: string;
-  items?: string[];
-  code?: string;
-  language?: string;
-  table?: { headers: string[]; rows: string[][] };
-  stats?: { label: string; value: string }[];
-  compare?: { left: { title: string; items: string[] }; right: { title: string; items: string[] } };
-  quote?: string;
-  quoteAuthor?: string;
-  narration?: string;
-  audioSrc?: string;
-  srtSrc?: string;
-  durationInFrames: number;
-  style?: Record<string, unknown>;
-}
-```
+以下想法出现时，**立即停下来重新检查**：
 
-## AI 工作目录约定
-
-```
-workdir/
-├── content-manifest.json     # S1 输出
-├── storyboard.json           # S2 输出（用户确认）
-├── production-plan.json      # S3 输出
-├── assets/
-│   ├── audio/                # S4 输出 mp3
-│   └── srt/                  # S4 输出 srt
-├── remotion-project/         # S5 组装
-└── out/
-    └── video.mp4             # S6 最终输出
-```
-
-## 关于 TTS
-
-默认使用 Edge TTS（免费，中文神经网络语音），Python 脚本位于 `scripts/generate-voiceover.py`，依赖 `edge-tts` 库。
-
-## 参考文档
-
-- `references/scene-templates.md`
-- `references/tts-setup.md`
-- `references/remotion-patterns.md`
+- "分镜看着没问题，直接继续" → **违规。必须等用户确认。**
+- "这个 section 需要自定义组件" → **违规。只用已有模板。**
+- "先跳过这个 stage" → **违规。严格按序。**
+- "用 AI 生成插图" → **违规。Phase 1 不做 AI 图像。**
+- "模板不太合适，改下代码" → **违规。换模板或调 props。**
 
 ## 约束
 
-- 所有文案使用中文
-- 视频尺寸固定 1920×1080 @ 30fps
-- 不生成 React 代码 — 只选择模板 + 填充参数
-- 分镜必须经用户确认后才执行渲染
-- Phase 1 不做 AI 图像/视频生成、多语种、特效音效
+- 中文配音 + 字幕，1920×1080 @ 30fps
+- 10 个预编译模板，不生成 React 代码
+- 分镜确认是强制步骤，不可跳过
+- Phase 1: 无 AI 图像/视频生成、无多语种、无特效音效
+- 工作目录: `workdir/`
+
+## 参考
+
+- `references/scene-templates.md` — 模板 Props 详情 + JSON schema
+- `references/tts-setup.md` — TTS 语音选项 + 环境配置
+- `references/remotion-patterns.md` — Remotion 开发/渲染命令

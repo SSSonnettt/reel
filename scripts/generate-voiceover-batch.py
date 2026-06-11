@@ -17,8 +17,16 @@ import sys
 async def generate_all(plan_path: str, workdir: str, voice: str, rate: str):
     """读取 ProductionPlan 并批量生成音频"""
 
-    # 动态导入（避免子进程覆盖本文件）
-    from generate_voiceover import generate
+    # 动态导入（文件名含连字符, Python 不允许直接 import）
+    import importlib.util
+    import os
+    spec = importlib.util.spec_from_file_location(
+        "generate_voiceover",
+        os.path.join(os.path.dirname(__file__), "generate-voiceover.py")
+    )
+    gv = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gv)
+    generate = gv.generate
 
     with open(plan_path, "r", encoding="utf-8") as f:
         plan = json.load(f)

@@ -36,7 +36,7 @@ remotion-project/
 
 ```tsx
 <Composition
-  id="DocToVideo"
+  id="Reel"
   component={VideoComposition}
   durationInFrames={totalFrames}
   fps={30}
@@ -106,13 +106,13 @@ SRT 解析由 `parseSRT()` 工具函数处理。
 npx remotion studio
 
 # 渲染输出
-npx remotion render DocToVideo out/video.mp4
+npx remotion render Reel out/video.mp4
 
 # 指定质量
-npx remotion render DocToVideo out/video.mp4 --crf 18
+npx remotion render Reel out/video.mp4 --crf 18
 
 # 渲染指定范围
-npx remotion render DocToVideo out/video.mp4 --frames=0-300
+npx remotion render Reel out/video.mp4 --frames=0-300
 ```
 
 ## 性能注意事项

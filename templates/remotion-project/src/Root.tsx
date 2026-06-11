@@ -17,7 +17,7 @@ export const Root: React.FC = () => {
   return (
     <>
       <Composition
-        id="DocToVideo"
+        id="Reel"
         component={VideoComposition}
         durationInFrames={totalFrames}
         fps={FPS}

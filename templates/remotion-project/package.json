@@ -1,7 +1,7 @@
 {
-  "name": "doc-to-video-remotion",
+  "name": "reel-remotion-template",
   "version": "1.0.0",
-  "description": "Remotion 项目模板 — 由 doc-to-video skill 自动生成",
+  "description": "Remotion 项目模板 — 由 reel skill 自动生成",
   "scripts": {
     "dev": "remotion studio",
     "build": "remotion render",

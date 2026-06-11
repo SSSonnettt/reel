@@ -176,7 +176,7 @@ reel/
 └── docs/
     └── superpowers/
         └── specs/
-            └── 2026-06-11-doc-to-video-design.md
+            └── 2026-06-11-reel-design.md
 ```
 
 ## 输出目录结构
