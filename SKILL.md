@@ -1,7 +1,19 @@
 ---
 name: reel
-description: 将 Markdown 文档或 URL 转换为带配音和字幕的 Remotion 教程视频,六阶段流水线自动编排
-version: 1.0.0
+description: >-
+  Use when the user wants to convert Markdown documents or URLs to tutorial videos
+  with TTS voiceover and SRT subtitles via Remotion. Triggers on: doc-to-video,
+  文档转视频, Markdown转视频, 生成教程视频, create tutorial video from docs.
+license: MIT
+compatibility: >-
+  Requires Node.js >= 18, Python 3.8+ with edge-tts library. Remotion for video rendering.
+  Works with any Markdown file or public URL.
+metadata:
+  author: wuji
+  version: "1.0.0"
+  category: content-creation
+  output-format: mp4
+  tts-engine: edge-tts
 ---
 
 # /reel

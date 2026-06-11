@@ -1,0 +1,23 @@
+{
+  "name": "reel",
+  "version": "1.0.0",
+  "description": "Convert Markdown documents or URLs to tutorial videos with TTS voiceover and SRT subtitles via Remotion",
+  "main": "SKILL.md",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "video-generation",
+    "markdown-to-video",
+    "remotion",
+    "tts",
+    "tutorial",
+    "content-creation"
+  ],
+  "author": "wuji",
+  "license": "MIT",
+  "packageManager": "npm@10.0.0",
+  "dependencies": {
+    "remotion": "^4.0.0"
+  }
+}
